@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>露娜巨蟹塔羅 🌸 靈魂之鏡</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-petal: #FFFBFC; 
+            --soft-rose: #FFE5EC; 
+            --deep-petal: #FB6F92; 
+            --text-main: #6D5959;
+        }
+
+        body {
+            background: linear-gradient(145deg, #FFFBFC 0%, #FFF0F3 100%);
+            color: var(--text-main);
+            font-family: 'Zen Maru Gothic', sans-serif;
+            min-height: 100vh;
+            line-height: 1.8;
+            margin: 0;
+            padding-bottom: 50px;
+        }
+
+        /* 縮小成一排的簡介 */
+        .intro-line {
+            font-size: 0.8rem;
+            white-space: nowrap;
+            letter-spacing: 0.05em;
+            color: #B5A4A4;
+            display: block;
+            margin-top: 5px;
+        }
+
+        /* 塔羅牌樣式 */
+        .tarot-card { perspective: 1000px; width: 160px; height: 280px; }
+        .card-inner {
+            position: relative; width: 100%; height: 100%;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d; cursor: pointer;
+        }
+        .card-inner.flipped { transform: rotateY(180deg); }
+        .card-front, .card-back {
+            position: absolute; width: 100%; height: 100%;
+            backface-visibility: hidden; border-radius: 12px;
+            border: 2px solid var(--soft-rose);
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .card-back {
+            background: #FFFFFF;
+            /* 牌背：粉色花紋 */
+            background-image: radial-gradient(var(--soft-rose) 1.5px, transparent 1.5px);
+            background-size: 15px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card-back::after {
+            content: "🌙";
+            font-size: 2rem;
+            opacity: 0.3;
+        }
+        .card-front { background: #fff; transform: rotateY(180deg); }
+        .reversed-img { transform: rotate(180deg); }
+
+        /* 字體比例設定 */
+        .body-text { font-size: 1.1rem; } 
+        .card-name-title { 
+            font-size: 2.2rem; 
+            font-weight: 700; 
+            color: var(--deep-petal);
+            line-height: 1.2;
+            margin-bottom: 15px;
+        }
+
+        .btn-luna {
+            background: var(--soft-rose);
+            color: #8D7373;
+            border-radius: 100px;
+            transition: all 0.3s;
+        }
+        .btn-luna:hover:not(:disabled) {
+            background: var(--deep-petal);
+            color: white;
+            transform: scale(1.05);
+        }
+        
+        .report-box {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 40px;
+            border: 1px solid var(--soft-rose);
+            box-shadow: 0 10px 40px rgba(255, 182, 193, 0.1);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+
+    <div class="max-w-4xl mx-auto text-center">
+        <!-- 標題區 -->
+        <header class="mb-10">
+            <h1 class="text-5xl font-bold text-[#E5989B] mb-2">露娜巨蟹塔羅</h1>
+            <p class="intro-line">塔羅牌是一面映照內心的鏡子。透過牌義，我們看見潛意識的答案，找到前行的力量與方向。</p>
+        </header>
+
+        <!-- 操作區 -->
+        <div class="bg-white/60 p-8 rounded-[40px] border border-white mb-12 shadow-sm">
+            <div class="flex justify-center gap-4 mb-8">
+                <button onclick="setMode('single')" id="m-single" class="px-8 py-2 rounded-full bg-[#FFE5EC] text-[#7A6A6A] font-bold text-sm shadow-sm">單張占卜</button>
+                <button onclick="setMode('triple')" id="m-triple" class="px-8 py-2 rounded-full bg-white text-gray-400 font-bold text-sm border border-[#F1F3F5]">聖三角牌陣</button>
+            </div>
+            <textarea id="question" rows="2" placeholder="輕輕輸入你想解決的問題，露娜在聽..." class="w-full p-6 rounded-3xl border-2 border-[#FFE5EC] outline-none focus:border-[#FB6F92] body-text mb-6"></textarea>
+            <button onclick="drawCards()" id="drawBtn" class="btn-luna px-16 py-4 text-2xl font-bold shadow-md">翻開靈魂之鏡</button>
+        </div>
+
+        <!-- 牌區 -->
+        <div id="cardStage" class="flex flex-wrap justify-center gap-8 mb-16"></div>
+
+        <!-- 解讀報告 -->
+        <div id="reportBox" class="hidden report-box p-8 md:p-16 text-left">
+            <h3 class="text-3xl text-[#E5989B] font-bold mb-12 text-center">🌸 靈魂鏡像解決方案 🌸</h3>
+            <div id="analysisArea" class="space-y-20"></div>
+            <div class="mt-20 text-center">
+                <button onclick="location.reload()" class="text-[#B5A4A4] underline text-sm">重整思緒，再次感應能量</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mode = 'single';
+        const deck = [];
+        const zhMajors = ["愚者", "魔術師", "女教皇", "女皇", "皇帝", "教皇", "戀人", "戰車", "力量", "隱士", "命運之輪", "正義", "倒吊人", "死神", "節制", "惡魔", "高塔", "星星", "月亮", "太陽", "審判", "世界"];
+        const zhSuits = ["權杖", "聖杯", "寶劍", "錢幣"];
+
+        // 圖片來源更新為可靠的 GitHub 靜態路徑
+        const imgBase = "https://raw.githubusercontent.com/ekelen/tarot-api/master/static/cards/";
+
+        // 初始化 78 張牌
+        // 大牌 0-21 (檔名為 m00.jpg, m01.jpg...)
+        for(let i=0; i<22; i++) {
+            const num = i < 10 ? '0' + i : i;
+            deck.push({ 
+                name: zhMajors[i], 
+                img: `${imgBase}m${num}.jpg` 
+            });
+        }
+        // 小牌 4組 x 14張 (檔名為 w01.jpg, c01.jpg...)
+        const suitCodes = ['w', 'c', 's', 'p'];
+        zhSuits.forEach((s, si) => {
+            for(let n=1; n<=14; n++) {
+                let rankName = n;
+                if(n===1) rankName="Ace"; 
+                else if(n===11) rankName="隨從"; 
+                else if(n===12) rankName="騎士"; 
+                else if(n===13) rankName="皇后"; 
+                else if(n===14) rankName="國王";
+                
+                const num = n < 10 ? '0' + n : n;
+                deck.push({ 
+                    name: s + rankName, 
+                    img: `${imgBase}${suitCodes[si]}${num}.jpg` 
+                });
+            }
+        });
+
+        function setMode(m) {
+            mode = m;
+            const active = "px-8 py-2 rounded-full bg-[#FFE5EC] text-[#7A6A6A] font-bold text-sm shadow-sm";
+            const inactive = "px-8 py-2 rounded-full bg-white text-gray-400 font-bold text-sm border border-[#F1F3F5]";
+            document.getElementById('m-single').className = m === 'single' ? active : inactive;
+            document.getElementById('m-triple').className = m === 'triple' ? active : inactive;
+        }
+
+        function drawCards() {
+            const q = document.getElementById('question').value;
+            if(!q) return alert("要告訴露娜你的問題，鏡子才能為你顯現喔。🍭");
+            
+            document.getElementById('drawBtn').disabled = true;
+            const stage = document.getElementById('cardStage'); stage.innerHTML = "";
+            document.getElementById('reportBox').classList.add('hidden');
+
+            const count = mode === 'single' ? 1 : 3;
+            const selected = [];
+            const tempDeck = [...deck];
+
+            for(let i=0; i<count; i++) {
+                const idx = Math.floor(Math.random() * tempDeck.length);
+                const card = tempDeck.splice(idx, 1)[0];
+                card.isRev = Math.random() > 0.4; // 40% 機率逆位
+                selected.push(card);
+            }
+
+            selected.forEach((card, i) => {
+                const div = document.createElement('div');
+                div.className = "tarot-card";
+                div.innerHTML = `
+                    <div class="card-inner" id="c-${i}">
+                        <div class="card-back"></div>
+                        <div class="card-front">
+                            <img src="${card.img}" class="w-full h-full object-cover ${card.isRev ? 'reversed-img' : ''}" 
+                                 onerror="this.src='https://via.placeholder.com/160x280?text=Card+Error'"
+                                 onload="this.style.opacity=1" style="opacity:0; transition:opacity 0.5s;">
+                        </div>
+                    </div>
+                `;
+                stage.appendChild(div);
+                // 延遲翻牌動畫，營造神祕感
+                setTimeout(() => document.getElementById(`c-${i}`).classList.add('flipped'), 600 + i*600);
+            });
+
+            setTimeout(() => showSolution(q, selected), 2000 + count*500);
+        }
+
+        function showSolution(q, cards) {
+            const area = document.getElementById('analysisArea');
+            document.getElementById('reportBox').classList.remove('hidden');
+
+            let html = `<div class="bg-[#FFF9FA] p-8 rounded-3xl text-[#E5989B] italic mb-12 text-center border border-[#FFE5EC] body-text">
+                「關於您的問題：${q}」<br>靈魂之鏡已映照出具體的解決路徑...
+            </div>`;
+
+            cards.forEach((card, i) => {
+                const step = mode === 'single' ? '核心啟示' : ['過去的影響', '當下的突破點', '未來的解決方案'][i];
+                
+                html += `
+                <div class="space-y-8 pb-16 border-b border-[#FDF2F4] last:border-0">
+                    <h4 class="card-name-title">${step}：${card.name} (${card.isRev ? '逆位' : '正位'})</h4>
+                    
+                    <div class="space-y-8 body-text text-[#6D5959]">
+                        <section>
+                            <h5 class="font-bold text-[#FB6F92] text-xl mb-3">📍 現況映射解析：</h5>
+                            <p>這張牌代表你目前的能量狀態正處於${card.isRev ? '一種被壓抑或需要重新導引' : '一個非常清晰且穩定'}的頻率中。${card.isRev ? '這暗示你目前的行動可能與你的初衷產生了小小的偏差，或者你正在被某些過去的負面情緒所拉扯。這不是阻礙，而是一個讓你「慢下來」重新檢視細節的訊號。' : '這是一個充滿力量的肯定，代表你目前的努力與宇宙的頻率是共振的。你所擔心的問題，其解答已經存在，只是需要一點點時間去落實。'}</p>
+                        </section>
+
+                        <section>
+                            <h5 class="font-bold text-[#FB6F92] text-xl mb-3">🛠️ 具體解決策略：</h5>
+                            <p>針對這個情況，露娜給你的具體策略是：${card.isRev ? '「學會留白」是現在最重要的行動。不要急著解決結果，而是要先解決你的內耗。試著斷開那些讓你感到疲憊的聯絡，停止追求完美的結果。當你放手不再試圖控制，轉機反而會出現在意想不到的地方。' : '「全力出擊」是目前的唯一捷徑。這張牌要求你把想法轉化為實體，不管是提交一份計畫、主動開啟一場對話、還是表達愛意，現在的勝算非常高。不需要等到萬事具備，踏出第一步，路就會自動顯現。'} </p>
+                        </section>
+
+                        <section>
+                            <h5 class="font-bold text-[#FB6F92] text-xl mb-3">🧘 心理建設與情緒導引：</h5>
+                            <p>${card.isRev ? '請對鏡子裡的自己保持溫柔。現在的「停滯」是宇宙給你的保護，讓你在正式發光前先累積能量。放下對自己的苛責，你的價值並不取決於這件事的成敗，而是在於你如何誠實地面對自己。' : '保持你的自信，但請記住保持最初的熱情。這張牌在告訴你，你的靈魂正在微笑。請允許自己享受這個過程，這股快樂的頻率本身就是最好的解決之道。'}</p>
+                        </section>
+
+                        <section class="bg-[#FFFDFD] p-8 rounded-3xl border border-[#FFE5EC]">
+                            <h5 class="font-bold text-[#D4A5A5] mb-4 text-xl">✅ 今日實踐清單（立刻做的三件事）：</h5>
+                            <ul class="list-disc pl-8 space-y-3 text-[#8E7E7E]">
+                                <li>${card.isRev ? '今天主動拒絕一個讓你感到內耗的聚會或請求。' : '聯絡一個能直接給予你具體幫助的關鍵對象。'}</li>
+                                <li>${card.isRev ? '整理你的個人空間，丟掉一張不需要的收據或舊雜物。' : '在今天下班前，完成一個你已經拖延超過一週的小任務。'}</li>
+                                <li>${card.isRev ? '比平常早睡一小時，並在睡前進行三次深呼吸。' : '看著鏡子對自己說三次：「我完全有能力創造我想要的生活」。'}</li>
+                            </ul>
+                        </section>
+                    </div>
+                </div>`;
+            });
+
+            if(mode === 'triple') {
+                html += `
+                <div class="bg-[#FFE5EC]/40 p-10 rounded-[50px] text-center mt-12 border-2 border-white shadow-sm">
+                    <h4 class="text-[#E5989B] font-bold mb-6 text-3xl">🌟 露娜的靈魂最終祝福</h4>
+                    <p class="text-xl text-[#8E7E7E]">這場從「${cards[0].name}」到「${cards[2].name}」的靈魂旅程，是為了讓你遇見更強大的自己。不要害怕眼前的起伏，因為那都是通往智慧的必經之路。露娜會一直陪伴著你，祝你今天收穫一份內心的平靜。🌿</p>
+                </div>`;
+            }
+
+            area.innerHTML = html;
+            document.getElementById('drawBtn').disabled = false;
+            setTimeout(() => {
+                document.getElementById('reportBox').scrollIntoView({ behavior: 'smooth' });
+            }, 500);
+        }
+    </script>
+</body>
+</html>
